@@ -23,7 +23,7 @@
         }
         .auth-card {
             background: white; padding: 30px; border-radius: 12px;
-            width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
+            width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
         }
         .auth-card h2 { margin-bottom: 15px; color: #2c3e50; }
         .auth-card input {
@@ -31,6 +31,20 @@
             border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
         }
         .auth-card button { width: 100%; margin-top: 10px; }
+
+        /* Lista de Pizarras Guardadas */
+        .board-list {
+            max-height: 250px; overflow-y: auto; margin: 15px 0; text-align: left;
+            border: 1px solid #ddd; border-radius: 8px; padding: 5px;
+        }
+        .board-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-bottom: 1px solid #eee;
+        }
+        .board-item:last-child { border-bottom: none; }
+        .board-item span { font-weight: bold; color: #2c3e50; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+        .board-actions { display: flex; gap: 5px; }
+        .btn-sm { padding: 4px 8px; font-size: 12px; }
 
         header {
             background-color: #2c3e50; color: white; padding: 8px 15px;
@@ -138,7 +152,7 @@
             position: relative;
         }
         .calendar-rings {
-            display: flex; justify-content: space-around; padding: 6px 15px 0 15px;
+            display: flex; justify-space-around; padding: 6px 15px 0 15px;
             background: #e74c3c; position: relative; z-index: 2;
         }
         .ring {
@@ -183,6 +197,17 @@
         </div>
     </div>
 
+    <!-- Modal Gestor de Pizarras -->
+    <div id="boardsModal" class="auth-overlay" style="display: none;">
+        <div class="auth-card">
+            <h2 id="boardsTitle">📁 Mis Pizarras</h2>
+            <div id="boardsListContainer" class="board-list">
+                <!-- Se rellena dinámicamente -->
+            </div>
+            <button class="btn btn-neutral" onclick="closeBoardsModal()">Cerrar</button>
+        </div>
+    </div>
+
     <!-- Toolbar -->
     <header>
         <div class="toolbar-group">
@@ -215,7 +240,7 @@
 
         <div class="toolbar-group">
             <button id="btnSave" class="btn btn-orange" onclick="saveBoardToServer()">💾 Guardar</button>
-            <button id="btnLoad" class="btn btn-orange" onclick="loadBoardFromServer()">📁 Mis Pizarras</button>
+            <button id="btnLoad" class="btn btn-orange" onclick="openBoardsModal()">📁 Mis Pizarras</button>
             <button id="btnLogout" class="btn btn-danger" onclick="logout()">🚪 Salir</button>
         </div>
 
@@ -252,8 +277,9 @@
                 userPlaceholder: 'Usuario', passPlaceholder: 'Contraseña', loginBtn: 'Entrar', registerBtn: 'Registrarse',
                 noAccount: '¿No tienes cuenta? Regístrate', hasAccount: '¿Ya tienes cuenta? Inicia Sesión',
                 confirmClear: '¿Limpiar pantalla actual?', savePrompt: 'Nombre para guardar esta clase:',
-                loadPrompt: 'Escribe el nombre exacto de la pizarra a cargar:\n\n-', noBoards: 'No tienes pizarras guardadas en este navegador.',
-                saveOk: '✅ Pizarra guardada correctamente.', loadOk: '✅ Pizarra cargada correctamente.'
+                noBoards: 'No tienes pizarras guardadas.',
+                saveOk: '✅ Pizarra guardada correctamente.', loadOk: '✅ Pizarra cargada correctamente.',
+                confirmDelete: '¿Seguro que quieres borrar la pizarra "'
             },
             va: {
                 pencil: '✏️ Llapis', move: '🖐️ Moure', text: '🔤 Text', eraser: '🧹 Esborrador',
@@ -265,8 +291,9 @@
                 userPlaceholder: 'Usuari', passPlaceholder: 'Contrasenya', loginBtn: 'Entrar', registerBtn: 'Registrar-se',
                 noAccount: 'No tens compte? Registra\'t', hasAccount: 'Ja tens compte? Inicia sessió',
                 confirmClear: 'Vols netejar la pantalla actual?', savePrompt: 'Nom per a guardar aquesta classe:',
-                loadPrompt: 'Escriu el nom exacte de la pissarra a carregar:\n\n-', noBoards: 'No tens pissarres guardades en aquest navegador.',
-                saveOk: '✅ Pissarra carregada correctament.', loadOk: '✅ Pissarra carregada correctament.'
+                noBoards: 'No tens pissarres guardades.',
+                saveOk: '✅ Pissarra guardada correctament.', loadOk: '✅ Pissarra carregada correctament.',
+                confirmDelete: 'Segur que vols esborrar la pissarra "'
             },
             en: {
                 pencil: '✏️ Pencil', move: '🖐️ Move', text: '🔤 Text', eraser: '🧹 Eraser',
@@ -278,8 +305,9 @@
                 userPlaceholder: 'Username', passPlaceholder: 'Password', loginBtn: 'Enter', registerBtn: 'Register',
                 noAccount: 'No account? Register', hasAccount: 'Already have an account? Login',
                 confirmClear: 'Clear current screen?', savePrompt: 'Name for saving this session:',
-                loadPrompt: 'Type the exact name of the board to load:\n\n-', noBoards: 'No boards saved in this browser.',
-                saveOk: '✅ Board saved successfully.', loadOk: '✅ Board loaded successfully.'
+                noBoards: 'No boards saved.',
+                saveOk: '✅ Board saved successfully.', loadOk: '✅ Board loaded successfully.',
+                confirmDelete: 'Are you sure you want to delete board "'
             }
         };
 
@@ -306,6 +334,7 @@
             document.getElementById('btnNewPage').innerText = t.newPage;
             document.getElementById('lblPage').innerText = t.page;
             document.getElementById('lblOf').innerText = t.of;
+            document.getElementById('boardsTitle').innerText = t.myBoards;
 
             document.getElementById('authUsername').placeholder = t.userPlaceholder;
             document.getElementById('authPassword').placeholder = t.passPlaceholder;
@@ -346,7 +375,6 @@
             updateAuthUI();
         }
 
-        /* MANEJO DE AUTH Y BBDD EN LOCALSTORAGE PARA GITHUB PAGES */
         function handleAuth() {
             const username = document.getElementById('authUsername').value.trim();
             if (!username) return alert('Introduce un usuario válido.');
@@ -376,21 +404,76 @@
             alert(t.saveOk);
         }
 
-        function loadBoardFromServer() {
-            const t = i18n[currentLang];
+        /* GESTOR DE PIZARRAS (ABRIR, CARGAR Y BORRAR) */
+        function openBoardsModal() {
+            renderBoardsList();
+            document.getElementById('boardsModal').style.display = 'flex';
+        }
+
+        function closeBoardsModal() {
+            document.getElementById('boardsModal').style.display = 'none';
+        }
+
+        function renderBoardsList() {
+            const container = document.getElementById('boardsListContainer');
+            container.innerHTML = '';
+            
             let myBoards = JSON.parse(localStorage.getItem('pdi_saved_boards') || '{}');
             const keys = Object.keys(myBoards);
 
-            if (keys.length === 0) return alert(t.noBoards);
+            if (keys.length === 0) {
+                container.innerHTML = `<div style="padding: 10px; color: #7f8c8d; text-align: center;">${i18n[currentLang].noBoards}</div>`;
+                return;
+            }
 
-            const selected = prompt(`${t.loadPrompt}${keys.join('\n- ')}`);
-            if (!selected || !myBoards[selected]) return;
+            keys.forEach(key => {
+                const item = document.createElement('div');
+                item.className = 'board-item';
 
-            pages = myBoards[selected];
+                const titleSpan = document.createElement('span');
+                titleSpan.innerText = key;
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'board-actions';
+
+                const loadBtn = document.createElement('button');
+                loadBtn.className = 'btn btn-success btn-sm';
+                loadBtn.innerText = '📂 Cargar';
+                loadBtn.onclick = () => loadBoard(key);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger btn-sm';
+                deleteBtn.innerText = '🗑️ Borrar';
+                deleteBtn.onclick = () => deleteBoard(key);
+
+                actionsDiv.appendChild(loadBtn);
+                actionsDiv.appendChild(deleteBtn);
+
+                item.appendChild(titleSpan);
+                item.appendChild(actionsDiv);
+                container.appendChild(item);
+            });
+        }
+
+        function loadBoard(key) {
+            let myBoards = JSON.parse(localStorage.getItem('pdi_saved_boards') || '{}');
+            if (!myBoards[key]) return;
+
+            pages = myBoards[key];
             currentPage = 0;
             loadPageState(currentPage);
             updatePageUI();
-            alert(t.loadOk);
+            closeBoardsModal();
+            alert(i18n[currentLang].loadOk);
+        }
+
+        function deleteBoard(key) {
+            if (confirm(`${i18n[currentLang].confirmDelete}${key}"?`)) {
+                let myBoards = JSON.parse(localStorage.getItem('pdi_saved_boards') || '{}');
+                delete myBoards[key];
+                localStorage.setItem('pdi_saved_boards', JSON.stringify(myBoards));
+                renderBoardsList();
+            }
         }
 
         function resizeCanvas() {
