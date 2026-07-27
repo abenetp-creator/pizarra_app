@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizarra Digital Educativa</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Modales */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .auth-card {
+            background: white; padding: 30px; border-radius: 12px;
+            width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
+        }
+        .auth-card h2 { margin-bottom: 15px; color: #2c3e50; }
+        .auth-card input {
+            width: 100%; padding: 10px; margin: 8px 0;
+            border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
+        }
+        .auth-card button { width: 100%; margin-top: 10px; }
+
+        header {
+            background-color: #2c3e50; color: white; padding: 8px 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100; flex-wrap: wrap; gap: 8px;
+        }
+        .toolbar-group { display: flex; align-items: center; gap: 8px; }
+
+        .color-btn {
+            width: 28px; height: 28px; border-radius: 50%; border: 2px solid white;
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .color-btn:active, .color-btn.active { transform: scale(1.2); border-color: #f1c40f; }
+
+        .btn {
+            background-color: #3498db; color: white; border: none;
+            padding: 7px 12px; border-radius: 8px; font-size: 14px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn.active { outline: 3px solid #f1c40f; background-color: #2980b9; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-success { background-color: #2ecc71; }
+        .btn-neutral { background-color: #7f8c8d; }
+        .btn-purple { background-color: #9b59b6; }
+        .btn-orange { background-color: #e67e22; }
+
+        .lang-select {
+            padding: 5px 8px; border-radius: 6px; border: 1px solid #ccc;
+            font-weight: bold; background: white; cursor: pointer;
+        }
+
+        #workspace { flex: 1; position: relative; background-color: #ffffff; overflow: hidden; }
+        
+        /* CORRECCIÓN DE ESTILOS DE CANVAS PARA NO AFECTAR AL RELOJ */
+        #paintCanvas { position: absolute; top: 0; left: 0; touch-action: none; z-index: 1; }
+
+        .movable-object { position: absolute; z-index: 10; user-select: none; }
+
+        .image-widget-wrapper {
+            position: absolute; z-index: 10; display: inline-block;
+            border: 2px dashed transparent; min-width: 50px; min-height: 50px;
+            resize: both; overflow: hidden;
+        }
+        .image-widget-wrapper img { width: 100%; height: 100%; display: block; pointer-events: none; }
+        
+        .delete-btn {
+            position: absolute; top: 2px; right: 2px; background: #e74c3c; color: white;
+            font-size: 11px; font-weight: bold; border-radius: 50%; width: 20px; height: 20px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 15;
+        }
+
+        .text-box-widget {
+            position: absolute; background: rgba(255, 255, 255, 0.9);
+            border: 1px dashed #3498db; border-radius: 6px; z-index: 10;
+            min-width: 100px; min-height: 50px; resize: both; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .text-box-header, .widget-header {
+            background: #2c3e50; color: white; font-size: 12px; padding: 4px 8px;
+            cursor: move; display: flex; justify-content: space-between; align-items: center; font-weight: bold;
+        }
+        .text-box-body { flex: 1; position: relative; overflow: hidden; width: 100%; height: 100%; }
+        .text-box-content {
+            position: absolute; top: 0; left: 0; transform-origin: top left;
+            outline: none; padding: 4px; font-family: 'Segoe UI', sans-serif;
+            font-weight: bold; white-space: nowrap;
+        }
+
+        /* WIDGETS REDIMENSIONABLES (RELOJ Y CALENDARIO) */
+        .widget-box {
+            position: absolute; background: #ffffff; border: 2px solid #2c3e50;
+            border-radius: 12px; z-index: 10; box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+            overflow: hidden; resize: both; display: flex; flex-direction: column;
+        }
+        .widget-btn-toggle {
+            background: #34495e; color: white; border: none; border-radius: 4px;
+            padding: 2px 6px; font-size: 10px; cursor: pointer; margin-right: 6px;
+        }
+
+        .widget-content-body {
+            flex: 1; position: relative; overflow: hidden; display: flex;
+            align-items: center; justify-content: center; width: 100%; height: 100%;
+        }
+
+        .scalable-wrapper {
+            transform-origin: center center; display: flex;
+            align-items: center; justify-content: center;
+        }
+
+        /* Reloj Digital & Analógico */
+        .clock-container { padding: 10px; text-align: center; display: flex; justify-content: center; align-items: center; }
+        .digital-clock { font-size: 32px; font-weight: bold; color: #2c3e50; font-family: monospace; white-space: nowrap; }
+        
+        /* CORRECCIÓN CLAVE PARA EL CANVAS DEL RELOJ */
+        .analog-canvas {
+            position: static !important;
+            display: block;
+            border-radius: 50%;
+            background: #ffffff;
+        }
+
+        /* WIDGET CALENDARIO */
+        .calendar-card {
+            width: 180px; background: white; border: 3px solid #dcdde1;
+            border-radius: 20px; overflow: hidden; box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .calendar-rings {
+            display: flex; justify-content: space-around; padding: 6px 15px 0 15px;
+            background: #e74c3c; position: relative; z-index: 2;
+        }
+        .ring {
+            width: 10px; height: 14px; background: #718093; border: 2px solid #2f3640;
+            border-radius: 5px; margin-top: -8px;
+        }
+        .calendar-header-red {
+            background: #e74c3c; height: 18px; border-bottom: 2px solid #c0392b;
+        }
+        .calendar-body-day {
+            padding: 12px 10px; text-align: center; color: #2f3640;
+        }
+        .cal-weekday { font-size: 18px; font-weight: 600; text-transform: lowercase; }
+        .cal-daynum { font-size: 42px; font-weight: 800; line-height: 1.1; margin: 2px 0; }
+        .cal-month { font-size: 18px; font-weight: 600; text-transform: lowercase; }
+
+        /* Calendario Mensual */
+        .calendar-month-view { padding: 10px; text-align: center; width: 230px; }
+        .cal-month-title { font-weight: bold; margin-bottom: 8px; color: #e74c3c; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; font-size: 11px; }
+        .cal-grid div { padding: 4px 2px; border-radius: 3px; }
+        .cal-grid .header-day { font-weight: bold; color: #7f8c8d; }
+        .cal-grid .today { background: #e74c3c; color: white; font-weight: bold; border-radius: 50%; }
+
+        footer {
+            background-color: #ecf0f1; border-top: 2px solid #bdc3c7; padding: 8px 15px;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+        .page-controls { display: flex; align-items: center; gap: 15px; font-weight: bold; font-size: 18px; color: #2c3e50; }
+    </style>
+</head>
+<body>
+
+    <!-- Modal Login -->
+    <div id="authModal" class="auth-overlay">
+        <div class="auth-card">
+            <h2 id="authTitle">🔑 Iniciar Sesión</h2>
+            <input type="text" id="authUsername" placeholder="Usuario">
+            <input type="password" id="authPassword" placeholder="Contraseña">
+            <button class="btn btn-success" id="btnAuthSubmit" onclick="handleAuth()">Entrar</button>
+            <button class="btn btn-neutral" style="margin-top: 5px;" onclick="toggleAuthMode()" id="btnToggleAuth">¿No tienes cuenta? Regístrate</button>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <header>
+        <div class="toolbar-group">
+            <span style="font-size: 16px; font-weight: bold;">✏️ PDI Aula</span>
+            <button id="btnPencil" class="btn btn-neutral active" onclick="usePencil()">✏️ Lápiz</button>
+            <button id="btnSelect" class="btn btn-neutral" onclick="useSelectTool()">🖐️ Mover</button>
+            <button id="btnText" class="btn btn-neutral" onclick="useTextTool()">🔤 Texto</button>
+            
+            <div class="color-btn" style="background: #2c3e50;" onclick="setColor('#2c3e50')"></div>
+            <div class="color-btn" style="background: #e74c3c;" onclick="setColor('#e74c3c')"></div>
+            <div class="color-btn" style="background: #2ecc71;" onclick="setColor('#2ecc71')"></div>
+            <div class="color-btn" style="background: #3498db;" onclick="setColor('#3498db')"></div>
+            
+            <button id="btnEraser" class="btn btn-neutral" onclick="useEraser()">🧹 Borrador</button>
+            <button id="btnClear" class="btn btn-danger" onclick="clearCanvas()">🗑️ Limpiar</button>
+        </div>
+
+        <div class="toolbar-group">
+            <button id="btnClock" class="btn btn-purple" onclick="addClockWidget()">⏰ Reloj</button>
+            <button id="btnCalendar" class="btn btn-purple" onclick="addCalendarWidget()">📅 Calendario</button>
+            <button id="btnImage" class="btn btn-purple" onclick="document.getElementById('imageInput').click()">🖼️ Imagen</button>
+            <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+            
+            <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)">
+                <option value="es">🇪🇸 Castellano</option>
+                <option value="va">🦇 Valencià</option>
+                <option value="en">🇬🇧 English</option>
+            </select>
+        </div>
+
+        <div class="toolbar-group">
+            <button id="btnSave" class="btn btn-orange" onclick="saveBoardToServer()">☁️ Guardar</button>
+            <button id="btnLoad" class="btn btn-orange" onclick="loadBoardFromServer()">☁️ Mis Pizarras</button>
+            <button id="btnLogout" class="btn btn-danger" onclick="logout()">🚪 Salir</button>
+        </div>
+
+        <div class="toolbar-group">
+            <label id="lblThickness" style="font-weight: bold; font-size: 12px;">Grosor:</label>
+            <input type="range" id="lineWidth" min="2" max="50" value="5" style="width: 60px;">
+        </div>
+    </header>
+
+    <div id="workspace">
+        <canvas id="paintCanvas"></canvas>
+    </div>
+
+    <footer>
+        <div class="page-controls">
+            <button id="btnPrevPage" class="btn btn-neutral" onclick="prevPage()">⬅️ Anterior</button>
+            <span><span id="lblPage">Página</span> <span id="pageNum">1</span> <span id="lblOf">de</span> <span id="totalPages">1</span></span>
+            <button id="btnNextPage" class="btn btn-neutral" onclick="nextPage()">Siguiente ➡️</button>
+        </div>
+        <div>
+            <button id="btnNewPage" class="btn btn-success" onclick="addNewPage()">➕ Nueva Pizarra</button>
+        </div>
+    </footer>
+
+    <script>
+        const i18n = {
+            es: {
+                pencil: '✏️ Lápiz', move: '🖐️ Mover', text: '🔤 Texto', eraser: '🧹 Borrador',
+                clear: '🗑️ Limpiar', image: '🖼️ Imagen', save: '☁️ Guardar', myBoards: '☁️ Mis Pizarras',
+                logout: '🚪 Salir', thickness: 'Grosor:', prev: '⬅️ Anterior', next: 'Siguiente ➡️',
+                newPage: '➕ Nueva Pizarra', page: 'Página', of: 'de', moveHeader: '🔤 Mover',
+                clock: '⏰ Reloj', calendar: '📅 Calendario',
+                defaultText: 'Escribe aquí', loginTitle: '🔑 Iniciar Sesión', registerTitle: '📝 Crear Cuenta',
+                userPlaceholder: 'Usuario', passPlaceholder: 'Contraseña', loginBtn: 'Entrar', registerBtn: 'Registrarse',
+                noAccount: '¿No tienes cuenta? Regístrate', hasAccount: '¿Ya tienes cuenta? Inicia Sesión',
+                confirmClear: '¿Limpiar pantalla actual?', savePrompt: 'Nombre para guardar esta clase:',
+                loadPrompt: 'Escribe el nombre exacto de la pizarra a cargar:\n\n-', noBoards: 'No tienes pizarras guardadas en el servidor.',
+                saveOk: '✅ Pizarra guardada correctamente.', loadOk: '✅ Pizarra cargada correctamente.'
+            },
+            va: {
+                pencil: '✏️ Llapis', move: '🖐️ Moure', text: '🔤 Text', eraser: '🧹 Esborrador',
+                clear: '🗑️ Netejar', image: '🖼️ Imatge', save: '☁️ Guardar', myBoards: '☁️ Les meues pissarres',
+                logout: '🚪 Eixir', thickness: 'Gruix:', prev: '⬅️ Anterior', next: 'Següent ➡️',
+                newPage: '➕ Nova Pissarra', page: 'Pàgina', of: 'de', moveHeader: '🔤 Moure',
+                clock: '⏰ Rellotge', calendar: '📅 Calendari',
+                defaultText: 'Escriu ací', loginTitle: '🔑 Iniciar Sessió', registerTitle: '📝 Crear Compte',
+                userPlaceholder: 'Usuari', passPlaceholder: 'Contrasenya', loginBtn: 'Entrar', registerBtn: 'Registrar-se',
+                noAccount: 'No tens compte? Registra\'t', hasAccount: 'Ja tens compte? Inicia sessió',
+                confirmClear: 'Vols netejar la pantalla actual?', savePrompt: 'Nom per a guardar aquesta classe:',
+                loadPrompt: 'Escriu el nom exacte de la pissarra a carregar:\n\n-', noBoards: 'No tens pissarres guardades al servidor.',
+                saveOk: '✅ Pissarra guardada correctament.', loadOk: '✅ Pissarra carregada correctament.'
+            },
+            en: {
+                pencil: '✏️ Pencil', move: '🖐️ Move', text: '🔤 Text', eraser: '🧹 Eraser',
+                clear: '🗑️ Clear', image: '🖼️ Image', save: '☁️ Save', myBoards: '☁️ My Boards',
+                logout: '🚪 Logout', thickness: 'Thickness:', prev: '⬅️ Previous', next: 'Next ➡️',
+                newPage: '➕ New Board', page: 'Page', of: 'of', moveHeader: '🔤 Move',
+                clock: '⏰ Clock', calendar: '📅 Calendar',
+                defaultText: 'Type here', loginTitle: '🔑 Login', registerTitle: '📝 Create Account',
+                userPlaceholder: 'Username', passPlaceholder: 'Password', loginBtn: 'Enter', registerBtn: 'Register',
+                noAccount: 'No account? Register', hasAccount: 'Already have an account? Login',
+                confirmClear: 'Clear current screen?', savePrompt: 'Name for saving this session:',
+                loadPrompt: 'Type the exact name of the board to load:\n\n-', noBoards: 'No boards saved on the server.',
+                saveOk: '✅ Board saved successfully.', loadOk: '✅ Board loaded successfully.'
+            }
+        };
+
+        let currentLang = 'es';
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            const t = i18n[lang];
+
+            document.getElementById('btnPencil').innerText = t.pencil;
+            document.getElementById('btnSelect').innerText = t.move;
+            document.getElementById('btnText').innerText = t.text;
+            document.getElementById('btnEraser').innerText = t.eraser;
+            document.getElementById('btnClear').innerText = t.clear;
+            document.getElementById('btnClock').innerText = t.clock;
+            document.getElementById('btnCalendar').innerText = t.calendar;
+            document.getElementById('btnImage').innerText = t.image;
+            document.getElementById('btnSave').innerText = t.save;
+            document.getElementById('btnLoad').innerText = t.myBoards;
+            document.getElementById('btnLogout').innerText = t.logout;
+            document.getElementById('lblThickness').innerText = t.thickness;
+            document.getElementById('btnPrevPage').innerText = t.prev;
+            document.getElementById('btnNextPage').innerText = t.next;
+            document.getElementById('btnNewPage').innerText = t.newPage;
+            document.getElementById('lblPage').innerText = t.page;
+            document.getElementById('lblOf').innerText = t.of;
+
+            document.getElementById('authUsername').placeholder = t.userPlaceholder;
+            document.getElementById('authPassword').placeholder = t.passPlaceholder;
+            
+            updateAuthUI();
+            updateAllCalendars();
+        }
+
+        function updateAuthUI() {
+            const t = i18n[currentLang];
+            document.getElementById('authTitle').innerText = isRegisterMode ? t.registerTitle : t.loginTitle;
+            document.getElementById('btnAuthSubmit').innerText = isRegisterMode ? t.registerBtn : t.loginBtn;
+            document.getElementById('btnToggleAuth').innerText = isRegisterMode ? t.hasAccount : t.noAccount;
+        }
+
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        const workspace = document.getElementById('workspace');
+
+        let isDrawing = false;
+        let currentColor = '#2c3e50';
+        let activeTool = 'pencil';
+        let pages = [];
+        let currentPage = 0;
+        let authToken = localStorage.getItem('pdi_token') || null;
+        let isRegisterMode = false;
+
+        function checkAuth() {
+            if (authToken) {
+                document.getElementById('authModal').style.display = 'none';
+            } else {
+                document.getElementById('authModal').style.display = 'flex';
+            }
+        }
+
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            updateAuthUI();
+        }
+
+        async function handleAuth() {
+            const username = document.getElementById('authUsername').value;
+            const password = document.getElementById('authPassword').value;
+            const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error);
+
+                if (isRegisterMode) {
+                    alert('OK');
+                    toggleAuthMode();
+                } else {
+                    authToken = data.token;
+                    localStorage.setItem('pdi_token', authToken);
+                    checkAuth();
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('pdi_token');
+            authToken = null;
+            location.reload();
+        }
+
+        async function saveBoardToServer() {
+            if (!authToken) return;
+            const t = i18n[currentLang];
+            const title = prompt(t.savePrompt);
+            if (!title) return;
+
+            saveCurrentPageState();
+
+            try {
+                const res = await fetch('/api/save-board', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ title, boardData: pages })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                alert(t.saveOk);
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function loadBoardFromServer() {
+            if (!authToken) return;
+            const t = i18n[currentLang];
+
+            try {
+                const res = await fetch('/api/my-boards', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const files = await res.json();
+
+                if (files.length === 0) return alert(t.noBoards);
+
+                const selected = prompt(`${t.loadPrompt}${files.join('\n- ')}`);
+                if (!selected) return;
+
+                const loadRes = await fetch(`/api/load-board/${selected}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const boardData = await loadRes.json();
+
+                pages = boardData;
+                currentPage = 0;
+                loadPageState(currentPage);
+                updatePageUI();
+                alert(t.loadOk);
+
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        function resizeCanvas() {
+            const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.width = workspace.clientWidth;
+            canvas.height = workspace.clientHeight;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            if (tempImageData.width > 0) ctx.putImageData(tempImageData, 0, 0);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function init() {
+            checkAuth();
+            resizeCanvas();
+            saveCurrentPageState();
+            updatePageUI();
+            changeLanguage('es');
+        }
+
+        function saveCurrentPageState() {
+            const objects = [];
+            document.querySelectorAll('.movable-object').forEach(obj => {
+                if (obj.classList.contains('text-box-widget')) {
+                    const content = obj.querySelector('.text-box-content');
+                    objects.push({
+                        type: 'text', left: obj.style.left, top: obj.style.top,
+                        width: obj.style.width, height: obj.style.height,
+                        text: content.innerHTML, color: content.style.color,
+                        fontSize: content.style.fontSize, scale: content.dataset.scale || 1
+                    });
+                } else if (obj.classList.contains('image-widget-wrapper')) {
+                    const img = obj.querySelector('img');
+                    objects.push({
+                        type: 'image', left: obj.style.left, top: obj.style.top,
+                        width: obj.style.width, height: obj.style.height, src: img.src
+                    });
+                } else if (obj.classList.contains('clock-widget')) {
+                    objects.push({
+                        type: 'clock', left: obj.style.left, top: obj.style.top,
+                        width: obj.style.width, height: obj.style.height,
+                        mode: obj.dataset.mode || 'analog'
+                    });
+                } else if (obj.classList.contains('calendar-widget')) {
+                    objects.push({
+                        type: 'calendar', left: obj.style.left, top: obj.style.top,
+                        width: obj.style.width, height: obj.style.height,
+                        mode: obj.dataset.mode || 'day'
+                    });
+                }
+            });
+
+            pages[currentPage] = { canvasData: canvas.toDataURL(), objects: objects };
+        }
+
+        function loadPageState(index) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.querySelectorAll('.movable-object').forEach(obj => obj.remove());
+
+            const page = pages[index];
+            if (!page) return;
+
+            if (page.canvasData) {
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0);
+                img.src = page.canvasData;
+            }
+
+            if (page.objects) {
+                page.objects.forEach(obj => {
+                    if (obj.type === 'image') createMovableImage(obj.src, obj.left, obj.top, obj.width, obj.height);
+                    else if (obj.type === 'text') createMovableText(obj.text, obj.left, obj.top, obj.color, obj.fontSize, false, obj.width, obj.height, obj.scale);
+                    else if (obj.type === 'clock') addClockWidget(obj.left, obj.top, obj.mode, obj.width, obj.height);
+                    else if (obj.type === 'calendar') addCalendarWidget(obj.left, obj.top, obj.mode, obj.width, obj.height);
+                });
+            }
+        }
+
+        function addNewPage() {
+            saveCurrentPageState();
+            currentPage = pages.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.querySelectorAll('.movable-object').forEach(obj => obj.remove());
+            saveCurrentPageState();
+            updatePageUI();
+        }
+
+        function nextPage() {
+            if (currentPage < pages.length - 1) {
+                saveCurrentPageState(); currentPage++; loadPageState(currentPage); updatePageUI();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 0) {
+                saveCurrentPageState(); currentPage--; loadPageState(currentPage); updatePageUI();
+            }
+        }
+
+        function updatePageUI() {
+            document.getElementById('pageNum').innerText = currentPage + 1;
+            document.getElementById('totalPages').innerText = pages.length;
+        }
+
+        function usePencil() { activeTool = 'pencil'; canvas.style.pointerEvents = 'auto'; updateToolUI('btnPencil'); }
+        function useSelectTool() { activeTool = 'select'; canvas.style.pointerEvents = 'none'; updateToolUI('btnSelect'); }
+        function useTextTool() { activeTool = 'text'; canvas.style.pointerEvents = 'auto'; updateToolUI('btnText'); }
+        function useEraser() { activeTool = 'eraser'; canvas.style.pointerEvents = 'auto'; updateToolUI('btnEraser'); }
+
+        function updateToolUI(activeBtnId) {
+            ['btnPencil', 'btnSelect', 'btnText', 'btnEraser'].forEach(id => document.getElementById(id).classList.remove('active'));
+            if (activeBtnId) document.getElementById(activeBtnId).classList.add('active');
+        }
+
+        function setColor(color) { if (activeTool === 'eraser') usePencil(); currentColor = color; }
+
+        function handleCanvasClick(e) {
+            if (activeTool !== 'text') return;
+            const pos = getPos(e);
+            createMovableText(i18n[currentLang].defaultText, pos.x + 'px', pos.y + 'px', currentColor, '24px', true);
+        }
+
+        function startDrawing(e) {
+            if (activeTool === 'select') return;
+            if (activeTool === 'text') { handleCanvasClick(e); return; }
+            isDrawing = true; ctx.beginPath();
+            const pos = getPos(e); ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing || activeTool === 'text' || activeTool === 'select') return;
+            const pos = getPos(e);
+            ctx.strokeStyle = (activeTool === 'eraser') ? '#ffffff' : currentColor;
+            ctx.lineWidth = document.getElementById('lineWidth').value;
+            ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing) { ctx.closePath(); isDrawing = false; saveCurrentPageState(); }
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+
+        function clearCanvas() {
+            if (confirm(i18n[currentLang].confirmClear)) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.querySelectorAll('.movable-object').forEach(obj => obj.remove());
+                saveCurrentPageState();
+            }
+        }
+
+        /* ---------------- WIDGET RELOJ REDIMENSIONABLE ---------------- */
+        function addClockWidget(left = '100px', top = '100px', initialMode = 'analog', width = '200px', height = '200px') {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'movable-object widget-box clock-widget';
+            wrapper.style.left = left; wrapper.style.top = top;
+            wrapper.style.width = width; wrapper.style.height = height;
+            wrapper.dataset.mode = initialMode;
+
+            const header = document.createElement('div'); header.className = 'widget-header';
+            
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'widget-btn-toggle';
+            toggleBtn.innerText = initialMode === 'analog' ? '🔢 Digital' : '🕒 Analógico';
+
+            header.appendChild(toggleBtn);
+            const titleSpan = document.createElement('span'); titleSpan.innerText = '⏰ Reloj';
+            header.appendChild(titleSpan);
+            
+            const closeSpan = document.createElement('span'); closeSpan.style.cursor = 'pointer'; closeSpan.innerText = '✖';
+            closeSpan.onclick = () => { wrapper.remove(); saveCurrentPageState(); };
+            header.appendChild(closeSpan);
+
+            const body = document.createElement('div'); body.className = 'widget-content-body';
+            const scalableWrapper = document.createElement('div'); scalableWrapper.className = 'scalable-wrapper';
+            body.appendChild(scalableWrapper);
+
+            wrapper.appendChild(header); wrapper.appendChild(body);
+
+            function renderClock() {
+                scalableWrapper.innerHTML = '';
+                const now = new Date();
+                if (wrapper.dataset.mode === 'digital') {
+                    const digi = document.createElement('div');
+                    digi.className = 'digital-clock';
+                    digi.innerText = now.toLocaleTimeString();
+                    scalableWrapper.appendChild(digi);
+                } else {
+                    const cvs = document.createElement('canvas');
+                    cvs.className = 'analog-canvas';
+                    cvs.width = 180; cvs.height = 180;
+                    scalableWrapper.appendChild(cvs);
+                    drawAnalogClock(cvs, now);
+                }
+                updateScale();
+            }
+
+            function updateScale() {
+                const baseWidth = wrapper.dataset.mode === 'digital' ? 180 : 180;
+                const baseHeight = wrapper.dataset.mode === 'digital' ? 60 : 180;
+                const scaleX = body.clientWidth / baseWidth;
+                const scaleY = body.clientHeight / baseHeight;
+                const scale = Math.min(scaleX, scaleY) * 0.85;
+                scalableWrapper.style.transform = `scale(${Math.max(scale, 0.2)})`;
+            }
+
+            toggleBtn.onclick = () => {
+                wrapper.dataset.mode = wrapper.dataset.mode === 'analog' ? 'digital' : 'analog';
+                toggleBtn.innerText = wrapper.dataset.mode === 'analog' ? '🔢 Digital' : '🕒 Analógico';
+                renderClock();
+                saveCurrentPageState();
+            };
+
+            renderClock();
+
+            setInterval(() => {
+                const now = new Date();
+                if (wrapper.dataset.mode === 'digital') {
+                    const digi = scalableWrapper.querySelector('.digital-clock');
+                    if (digi) digi.innerText = now.toLocaleTimeString();
+                } else {
+                    const cvs = scalableWrapper.querySelector('.analog-canvas');
+                    if (cvs) drawAnalogClock(cvs, now);
+                }
+            }, 1000);
+
+            new ResizeObserver(() => { updateScale(); saveCurrentPageState(); }).observe(wrapper);
+
+            dragElement(wrapper, header);
+            workspace.appendChild(wrapper);
+            saveCurrentPageState();
+        }
+
+        /* --- DIBUJO DEL RELOJ ANALÓGICO CENTRADO ABSOLUTO CON NÚMEROS --- */
+        function drawAnalogClock(canvasEl, date) {
+            const c = canvasEl.getContext('2d');
+            const w = canvasEl.width;
+            const h = canvasEl.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = Math.min(w, h) / 2 - 6;
+
+            c.setTransform(1, 0, 0, 1, 0, 0);
+            c.clearRect(0, 0, w, h);
+
+            // 1. Esfera exterior
+            c.beginPath();
+            c.arc(cx, cy, radius, 0, 2 * Math.PI);
+            c.fillStyle = '#ffffff';
+            c.fill();
+            c.lineWidth = 3;
+            c.strokeStyle = '#2c3e50';
+            c.stroke();
+
+            // 2. Marcas de minutos y horas
+            for (let i = 0; i < 60; i++) {
+                const angle = (i * Math.PI / 30) - (Math.PI / 2);
+                const isHour = i % 5 === 0;
+                const outerR = radius - 2;
+                const innerR = isHour ? radius - 10 : radius - 5;
+
+                c.beginPath();
+                c.moveTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+                c.lineTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+                c.lineWidth = isHour ? 2.5 : 1;
+                c.strokeStyle = isHour ? '#2c3e50' : '#bdc3c7';
+                c.stroke();
+            }
+
+            // 3. Números del 1 al 12
+            c.font = 'bold 15px "Segoe UI", sans-serif';
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.fillStyle = '#2c3e50';
+
+            for (let num = 1; num <= 12; num++) {
+                const angle = (num * Math.PI / 6) - (Math.PI / 2);
+                const x = cx + (radius - 22) * Math.cos(angle);
+                const y = cy + (radius - 22) * Math.sin(angle);
+                c.fillText(num.toString(), x, y);
+            }
+
+            // 4. Agujas
+            const hr = date.getHours() % 12;
+            const min = date.getMinutes();
+            const sec = date.getSeconds();
+
+            // Hora (corta y negra)
+            const hrAngle = ((hr + min / 60) * Math.PI / 6) - (Math.PI / 2);
+            drawHandLine(c, cx, cy, hrAngle, radius * 0.45, 5, '#2c3e50');
+
+            // Minutos (larga y azul)
+            const minAngle = ((min + sec / 60) * Math.PI / 30) - (Math.PI / 2);
+            drawHandLine(c, cx, cy, minAngle, radius * 0.65, 3.5, '#3498db');
+
+            // Segundos (fina y roja)
+            const secAngle = (sec * Math.PI / 30) - (Math.PI / 2);
+            drawHandLine(c, cx, cy, secAngle, radius * 0.75, 1.5, '#e74c3c');
+
+            // Tapón centro
+            c.beginPath();
+            c.arc(cx, cy, 5, 0, 2 * Math.PI);
+            c.fillStyle = '#2c3e50';
+            c.fill();
+        }
+
+        function drawHandLine(ctx, cx, cy, angle, length, width, color) {
+            ctx.beginPath();
+            ctx.lineWidth = width;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = color;
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + length * Math.cos(angle), cy + length * Math.sin(angle));
+            ctx.stroke();
+        }
+
+        /* ---------------- WIDGET CALENDARIO REDIMENSIONABLE ---------------- */
+        function addCalendarWidget(left = '320px', top = '100px', initialMode = 'day', width = '220px', height = '240px') {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'movable-object widget-box calendar-widget';
+            wrapper.style.left = left; wrapper.style.top = top;
+            wrapper.style.width = width; wrapper.style.height = height;
+            wrapper.dataset.mode = initialMode;
+
+            const header = document.createElement('div'); header.className = 'widget-header';
+            
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'widget-btn-toggle';
+            toggleBtn.innerText = initialMode === 'day' ? '🗓️ Mes' : '📆 Día';
+
+            header.appendChild(toggleBtn);
+            const titleSpan = document.createElement('span'); titleSpan.innerText = '📅 Calendario';
+            header.appendChild(titleSpan);
+
+            const closeSpan = document.createElement('span'); closeSpan.style.cursor = 'pointer'; closeSpan.innerText = '✖';
+            closeSpan.onclick = () => { wrapper.remove(); saveCurrentPageState(); };
+            header.appendChild(closeSpan);
+
+            const body = document.createElement('div'); body.className = 'widget-content-body';
+            const scalableWrapper = document.createElement('div'); scalableWrapper.className = 'scalable-wrapper';
+            body.appendChild(scalableWrapper);
+
+            wrapper.appendChild(header); wrapper.appendChild(body);
+
+            function renderCalendar() {
+                scalableWrapper.innerHTML = '';
+                const now = new Date();
+
+                if (wrapper.dataset.mode === 'day') {
+                    const card = document.createElement('div');
+                    card.className = 'calendar-card';
+
+                    const rings = document.createElement('div');
+                    rings.className = 'calendar-rings';
+                    rings.innerHTML = '<div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div>';
+
+                    const headerRed = document.createElement('div');
+                    headerRed.className = 'calendar-header-red';
+
+                    const bDay = document.createElement('div');
+                    bDay.className = 'calendar-body-day';
+
+                    const weekday = now.toLocaleDateString(currentLang, { weekday: 'long' });
+                    const dayNum = now.getDate();
+                    const month = now.toLocaleDateString(currentLang, { month: 'long' });
+
+                    bDay.innerHTML = `
+                        <div class="cal-weekday">${weekday}</div>
+                        <div class="cal-daynum">${dayNum}</div>
+                        <div class="cal-month">${month}</div>
+                    `;
+
+                    card.appendChild(rings);
+                    card.appendChild(headerRed);
+                    card.appendChild(bDay);
+                    scalableWrapper.appendChild(card);
+                } else {
+                    const monthView = document.createElement('div');
+                    monthView.className = 'calendar-month-view';
+                    
+                    const monthYearTitle = now.toLocaleDateString(currentLang, { month: 'long', year: 'numeric' });
+                    monthView.innerHTML = `<div class="cal-month-title">${monthYearTitle.toUpperCase()}</div>`;
+
+                    const grid = document.createElement('div');
+                    grid.className = 'cal-grid';
+
+                    const daysShort = currentLang === 'es' ? ['L','M','X','J','V','S','D'] :
+                                     currentLang === 'va' ? ['L','M','X','G','V','S','D'] :
+                                                            ['M','T','W','T','F','S','S'];
+
+                    daysShort.forEach(d => grid.innerHTML += `<div class="header-day">${d}</div>`);
+
+                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+                    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                    
+                    let startOffset = (firstDay === 0 ? 6 : firstDay - 1);
+                    for (let i = 0; i < startOffset; i++) grid.innerHTML += `<div></div>`;
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const isToday = d === now.getDate() ? 'today' : '';
+                        grid.innerHTML += `<div class="${isToday}">${d}</div>`;
+                    }
+
+                    monthView.appendChild(grid);
+                    scalableWrapper.appendChild(monthView);
+                }
+                updateScale();
+            }
+
+            function updateScale() {
+                const baseWidth = wrapper.dataset.mode === 'day' ? 180 : 230;
+                const baseHeight = wrapper.dataset.mode === 'day' ? 200 : 200;
+                const scaleX = body.clientWidth / baseWidth;
+                const scaleY = body.clientHeight / baseHeight;
+                const scale = Math.min(scaleX, scaleY) * 0.9;
+                scalableWrapper.style.transform = `scale(${Math.max(scale, 0.2)})`;
+            }
+
+            toggleBtn.onclick = () => {
+                wrapper.dataset.mode = wrapper.dataset.mode === 'day' ? 'month' : 'day';
+                toggleBtn.innerText = wrapper.dataset.mode === 'day' ? '🗓️ Mes' : '📆 Día';
+                renderCalendar();
+                saveCurrentPageState();
+            };
+
+            wrapper.updateContent = renderCalendar;
+            renderCalendar();
+
+            new ResizeObserver(() => { updateScale(); saveCurrentPageState(); }).observe(wrapper);
+
+            dragElement(wrapper, header);
+            workspace.appendChild(wrapper);
+            saveCurrentPageState();
+        }
+
+        function updateAllCalendars() {
+            document.querySelectorAll('.calendar-widget').forEach(w => {
+                if (w.updateContent) w.updateContent();
+            });
+        }
+
+        function createMovableImage(src, left, top, width, height) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'movable-object image-widget-wrapper';
+            wrapper.style.left = left || '100px'; wrapper.style.top = top || '100px';
+            wrapper.style.width = width || '300px'; wrapper.style.height = height || 'auto';
+
+            const img = document.createElement('img'); img.src = src;
+            const deleteBtn = document.createElement('div');
+            deleteBtn.className = 'delete-btn'; deleteBtn.innerText = '✖';
+            deleteBtn.onclick = (e) => { e.stopPropagation(); wrapper.remove(); saveCurrentPageState(); };
+
+            wrapper.appendChild(deleteBtn); wrapper.appendChild(img);
+            new ResizeObserver(() => saveCurrentPageState()).observe(wrapper);
+            dragElement(wrapper); workspace.appendChild(wrapper); saveCurrentPageState();
+        }
+
+        function createMovableText(text, left, top, color, fontSize, autoFocus = false, width = 'auto', height = 'auto', initialScale = 1) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'movable-object text-box-widget';
+            wrapper.style.left = left; wrapper.style.top = top;
+
+            const header = document.createElement('div'); header.className = 'text-box-header';
+            header.innerHTML = `<span>${i18n[currentLang].moveHeader}</span><span style="cursor:pointer;" onclick="this.parentElement.parentElement.remove(); saveCurrentPageState();">✖</span>`;
+
+            const body = document.createElement('div'); body.className = 'text-box-body';
+            const content = document.createElement('div'); content.className = 'text-box-content';
+            content.contentEditable = true; content.style.color = color || currentColor;
+            content.style.fontSize = fontSize || '24px'; content.innerHTML = text;
+
+            body.appendChild(content); wrapper.appendChild(header); wrapper.appendChild(body);
+
+            let initialWidth = 0, initialHeight = 0;
+            function updateTextScale() {
+                if (!initialWidth || !initialHeight) return;
+                const scale = Math.min(body.clientWidth / initialWidth, body.clientHeight / initialHeight);
+                content.style.transform = `scale(${scale})`;
+                content.dataset.scale = scale;
+                saveCurrentPageState();
+            }
+
+            content.onblur = () => {
+                initialWidth = content.offsetWidth; initialHeight = content.offsetHeight;
+                saveCurrentPageState();
+            };
+
+            dragElement(wrapper, header); workspace.appendChild(wrapper);
+            if (width !== 'auto') wrapper.style.width = width;
+            if (height !== 'auto') wrapper.style.height = height;
+
+            setTimeout(() => {
+                initialWidth = content.offsetWidth || 150; initialHeight = content.offsetHeight || 40;
+                if (initialScale != 1) { content.style.transform = `scale(${initialScale})`; content.dataset.scale = initialScale; }
+                new ResizeObserver(() => updateTextScale()).observe(wrapper);
+            }, 50);
+
+            if (autoFocus) setTimeout(() => content.focus(), 60);
+            saveCurrentPageState();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => createMovableImage(evt.target.result, '100px', '100px');
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function dragElement(elmnt, dragHandle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const handle = dragHandle || elmnt;
+            handle.onmousedown = (e) => {
+                if (e.target.isContentEditable || e.target.classList.contains('delete-btn') || e.target.tagName === 'BUTTON') return;
+                e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY;
+                document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; saveCurrentPageState(); };
+                document.onmousemove = (e) => {
+                    e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                    pos3 = e.clientX; pos4 = e.clientY;
+                    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                };
+            };
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

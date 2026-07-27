@@ -1,44 +1,37 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = 'clave_secreta_para_pdi_cambiar_en_produccion';
+const SECRET_KEY = 'clave_secreta_pdi';
 
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir archivos directamente desde la raíz
+app.use(express.static(__dirname));
 
-// Base de datos local en JSON (para desarrollo sencillo)
 const USERS_FILE = path.join(__dirname, 'users.json');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+}
 
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([]));
-
-// Helpers
 const getUsers = () => JSON.parse(fs.readFileSync(USERS_FILE));
-const saveUsers = (users) => fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+const saveUsers = (data) => fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2));
 
-// Middleware de Autenticación
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Acceso denegado' });
-
-    jwt.verify(token, SECRET_KEY, (err, user) => {
+const authenticate = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Token no proporcionado' });
+    
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
         if (err) return res.status(403).json({ error: 'Token inválido' });
-        req.user = user;
+        req.user = decoded;
         next();
     });
 };
 
-// --- RUTAS DE AUTENTICACIÓN ---
-
-// Registro de usuarios
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Faltan datos' });
 
@@ -47,73 +40,58 @@ app.post('/api/register', async (req, res) => {
         return res.status(400).json({ error: 'El usuario ya existe' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({ username, password: hashedPassword });
+    users.push({ username, password });
     saveUsers(users);
 
-    // Crear carpeta del usuario para sus pizarras
-    const userFolder = path.join(UPLOADS_DIR, username);
-    if (!fs.existsSync(userFolder)) fs.mkdirSync(userFolder);
+    const userDir = path.join(__dirname, 'data', username);
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
 
-    res.json({ message: 'Usuario registrado con éxito' });
+    res.json({ message: 'Usuario registrado correctamente' });
 });
 
-// Login de usuarios
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const users = getUsers();
-    const user = users.find(u => u.username === username);
+    const user = users.find(u => u.username === username && u.password === password);
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-        return res.status(400).json({ error: 'Usuario o contraseña incorrectos' });
-    }
+    if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
-    const token = jwt.sign({ username: user.username }, SECRET_KEY, { expiresIn: '24h' });
-    res.json({ token, username: user.username });
+    const token = jwt.sign({ username: user.username }, SECRET_KEY, { expiresIn: '8h' });
+    res.json({ token });
 });
 
-// --- RUTAS DE GUARDADO EN SERVIDO ---
-
-// Guardar clase en el servidor
-app.post('/api/save-board', authenticateToken, (req, res) => {
+app.post('/api/save-board', authenticate, (req, res) => {
     const { title, boardData } = req.body;
     if (!title || !boardData) return res.status(400).json({ error: 'Datos incompletos' });
 
-    const userFolder = path.join(UPLOADS_DIR, req.user.username);
-    if (!fs.existsSync(userFolder)) fs.mkdirSync(userFolder);
+    const userDir = path.join(__dirname, 'data', req.user.username);
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
 
-    const safeTitle = title.replace(/[^a-z0-9_-]/gi, '_');
-    const filePath = path.join(userFolder, `${safeTitle}.pdi`);
-
+    const filePath = path.join(userDir, `${title}.json`);
     fs.writeFileSync(filePath, JSON.stringify(boardData));
-    res.json({ message: 'Pizarra guardada correctamente en el servidor' });
+
+    res.json({ message: 'Pizarra guardada con éxito' });
 });
 
-// Listar clases guardadas del usuario
-app.get('/api/my-boards', authenticateToken, (req, res) => {
-    const userFolder = path.join(UPLOADS_DIR, req.user.username);
-    if (!fs.existsSync(userFolder)) return res.json([]);
+app.get('/api/my-boards', authenticate, (req, res) => {
+    const userDir = path.join(__dirname, 'data', req.user.username);
+    if (!fs.existsSync(userDir)) return res.json([]);
 
-    const files = fs.readdirSync(userFolder)
-        .filter(file => file.endsWith('.pdi'))
-        .map(file => file.replace('.pdi', ''));
+    const files = fs.readdirSync(userDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => f.replace('.json', ''));
 
     res.json(files);
 });
 
-// Cargar una clase específica
-app.get('/api/load-board/:title', authenticateToken, (req, res) => {
-    const safeTitle = req.params.title.replace(/[^a-z0-9_-]/gi, '_');
-    const filePath = path.join(UPLOADS_DIR, req.user.username, `${safeTitle}.pdi`);
+app.get('/api/load-board/:title', authenticate, (req, res) => {
+    const filePath = path.join(__dirname, 'data', req.user.username, `${req.params.title}.json`);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Pizarra no encontrada' });
 
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Archivo no encontrado' });
-    }
-
-    const data = JSON.parse(fs.readFileSync(filePath));
-    res.json(data);
+    const data = fs.readFileSync(filePath);
+    res.json(JSON.parse(data));
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor PDI ejecutándose en http://localhost:${PORT}`);
+    console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
 });
