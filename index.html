@@ -65,7 +65,6 @@
 
         #workspace { flex: 1; position: relative; background-color: #ffffff; overflow: hidden; }
         
-        /* CORRECCIÓN DE ESTILOS DE CANVAS PARA NO AFECTAR AL RELOJ */
         #paintCanvas { position: absolute; top: 0; left: 0; touch-action: none; z-index: 1; }
 
         .movable-object { position: absolute; z-index: 10; user-select: none; }
@@ -125,7 +124,6 @@
         .clock-container { padding: 10px; text-align: center; display: flex; justify-content: center; align-items: center; }
         .digital-clock { font-size: 32px; font-weight: bold; color: #2c3e50; font-family: monospace; white-space: nowrap; }
         
-        /* CORRECCIÓN CLAVE PARA EL CANVAS DEL RELOJ */
         .analog-canvas {
             position: static !important;
             display: block;
@@ -216,8 +214,8 @@
         </div>
 
         <div class="toolbar-group">
-            <button id="btnSave" class="btn btn-orange" onclick="saveBoardToServer()">☁️ Guardar</button>
-            <button id="btnLoad" class="btn btn-orange" onclick="loadBoardFromServer()">☁️ Mis Pizarras</button>
+            <button id="btnSave" class="btn btn-orange" onclick="saveBoardToServer()">💾 Guardar</button>
+            <button id="btnLoad" class="btn btn-orange" onclick="loadBoardFromServer()">📁 Mis Pizarras</button>
             <button id="btnLogout" class="btn btn-danger" onclick="logout()">🚪 Salir</button>
         </div>
 
@@ -246,7 +244,7 @@
         const i18n = {
             es: {
                 pencil: '✏️ Lápiz', move: '🖐️ Mover', text: '🔤 Texto', eraser: '🧹 Borrador',
-                clear: '🗑️ Limpiar', image: '🖼️ Imagen', save: '☁️ Guardar', myBoards: '☁️ Mis Pizarras',
+                clear: '🗑️ Limpiar', image: '🖼️ Imagen', save: '💾 Guardar', myBoards: '📁 Mis Pizarras',
                 logout: '🚪 Salir', thickness: 'Grosor:', prev: '⬅️ Anterior', next: 'Siguiente ➡️',
                 newPage: '➕ Nueva Pizarra', page: 'Página', of: 'de', moveHeader: '🔤 Mover',
                 clock: '⏰ Reloj', calendar: '📅 Calendario',
@@ -254,12 +252,12 @@
                 userPlaceholder: 'Usuario', passPlaceholder: 'Contraseña', loginBtn: 'Entrar', registerBtn: 'Registrarse',
                 noAccount: '¿No tienes cuenta? Regístrate', hasAccount: '¿Ya tienes cuenta? Inicia Sesión',
                 confirmClear: '¿Limpiar pantalla actual?', savePrompt: 'Nombre para guardar esta clase:',
-                loadPrompt: 'Escribe el nombre exacto de la pizarra a cargar:\n\n-', noBoards: 'No tienes pizarras guardadas en el servidor.',
+                loadPrompt: 'Escribe el nombre exacto de la pizarra a cargar:\n\n-', noBoards: 'No tienes pizarras guardadas en este navegador.',
                 saveOk: '✅ Pizarra guardada correctamente.', loadOk: '✅ Pizarra cargada correctamente.'
             },
             va: {
                 pencil: '✏️ Llapis', move: '🖐️ Moure', text: '🔤 Text', eraser: '🧹 Esborrador',
-                clear: '🗑️ Netejar', image: '🖼️ Imatge', save: '☁️ Guardar', myBoards: '☁️ Les meues pissarres',
+                clear: '🗑️ Netejar', image: '🖼️ Imatge', save: '💾 Guardar', myBoards: '📁 Les meues pissarres',
                 logout: '🚪 Eixir', thickness: 'Gruix:', prev: '⬅️ Anterior', next: 'Següent ➡️',
                 newPage: '➕ Nova Pissarra', page: 'Pàgina', of: 'de', moveHeader: '🔤 Moure',
                 clock: '⏰ Rellotge', calendar: '📅 Calendari',
@@ -267,12 +265,12 @@
                 userPlaceholder: 'Usuari', passPlaceholder: 'Contrasenya', loginBtn: 'Entrar', registerBtn: 'Registrar-se',
                 noAccount: 'No tens compte? Registra\'t', hasAccount: 'Ja tens compte? Inicia sessió',
                 confirmClear: 'Vols netejar la pantalla actual?', savePrompt: 'Nom per a guardar aquesta classe:',
-                loadPrompt: 'Escriu el nom exacte de la pissarra a carregar:\n\n-', noBoards: 'No tens pissarres guardades al servidor.',
-                saveOk: '✅ Pissarra guardada correctament.', loadOk: '✅ Pissarra carregada correctament.'
+                loadPrompt: 'Escriu el nom exacte de la pissarra a carregar:\n\n-', noBoards: 'No tens pissarres guardades en aquest navegador.',
+                saveOk: '✅ Pissarra carregada correctament.', loadOk: '✅ Pissarra carregada correctament.'
             },
             en: {
                 pencil: '✏️ Pencil', move: '🖐️ Move', text: '🔤 Text', eraser: '🧹 Eraser',
-                clear: '🗑️ Clear', image: '🖼️ Image', save: '☁️ Save', myBoards: '☁️ My Boards',
+                clear: '🗑️ Clear', image: '🖼️ Image', save: '💾 Save', myBoards: '📁 My Boards',
                 logout: '🚪 Logout', thickness: 'Thickness:', prev: '⬅️ Previous', next: 'Next ➡️',
                 newPage: '➕ New Board', page: 'Page', of: 'of', moveHeader: '🔤 Move',
                 clock: '⏰ Clock', calendar: '📅 Calendar',
@@ -280,7 +278,7 @@
                 userPlaceholder: 'Username', passPlaceholder: 'Password', loginBtn: 'Enter', registerBtn: 'Register',
                 noAccount: 'No account? Register', hasAccount: 'Already have an account? Login',
                 confirmClear: 'Clear current screen?', savePrompt: 'Name for saving this session:',
-                loadPrompt: 'Type the exact name of the board to load:\n\n-', noBoards: 'No boards saved on the server.',
+                loadPrompt: 'Type the exact name of the board to load:\n\n-', noBoards: 'No boards saved in this browser.',
                 saveOk: '✅ Board saved successfully.', loadOk: '✅ Board loaded successfully.'
             }
         };
@@ -348,32 +346,14 @@
             updateAuthUI();
         }
 
-        async function handleAuth() {
-            const username = document.getElementById('authUsername').value;
-            const password = document.getElementById('authPassword').value;
-            const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+        /* MANEJO DE AUTH Y BBDD EN LOCALSTORAGE PARA GITHUB PAGES */
+        function handleAuth() {
+            const username = document.getElementById('authUsername').value.trim();
+            if (!username) return alert('Introduce un usuario válido.');
 
-            try {
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-
-                if (!res.ok) throw new Error(data.error);
-
-                if (isRegisterMode) {
-                    alert('OK');
-                    toggleAuthMode();
-                } else {
-                    authToken = data.token;
-                    localStorage.setItem('pdi_token', authToken);
-                    checkAuth();
-                }
-            } catch (err) {
-                alert(err.message);
-            }
+            authToken = 'local_user_' + username;
+            localStorage.setItem('pdi_token', authToken);
+            checkAuth();
         }
 
         function logout() {
@@ -382,60 +362,35 @@
             location.reload();
         }
 
-        async function saveBoardToServer() {
-            if (!authToken) return;
+        function saveBoardToServer() {
             const t = i18n[currentLang];
             const title = prompt(t.savePrompt);
             if (!title) return;
 
             saveCurrentPageState();
 
-            try {
-                const res = await fetch('/api/save-board', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ title, boardData: pages })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                alert(t.saveOk);
-            } catch (err) {
-                alert(err.message);
-            }
+            let myBoards = JSON.parse(localStorage.getItem('pdi_saved_boards') || '{}');
+            myBoards[title] = pages;
+            localStorage.setItem('pdi_saved_boards', JSON.stringify(myBoards));
+
+            alert(t.saveOk);
         }
 
-        async function loadBoardFromServer() {
-            if (!authToken) return;
+        function loadBoardFromServer() {
             const t = i18n[currentLang];
+            let myBoards = JSON.parse(localStorage.getItem('pdi_saved_boards') || '{}');
+            const keys = Object.keys(myBoards);
 
-            try {
-                const res = await fetch('/api/my-boards', {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const files = await res.json();
+            if (keys.length === 0) return alert(t.noBoards);
 
-                if (files.length === 0) return alert(t.noBoards);
+            const selected = prompt(`${t.loadPrompt}${keys.join('\n- ')}`);
+            if (!selected || !myBoards[selected]) return;
 
-                const selected = prompt(`${t.loadPrompt}${files.join('\n- ')}`);
-                if (!selected) return;
-
-                const loadRes = await fetch(`/api/load-board/${selected}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const boardData = await loadRes.json();
-
-                pages = boardData;
-                currentPage = 0;
-                loadPageState(currentPage);
-                updatePageUI();
-                alert(t.loadOk);
-
-            } catch (err) {
-                alert(err.message);
-            }
+            pages = myBoards[selected];
+            currentPage = 0;
+            loadPageState(currentPage);
+            updatePageUI();
+            alert(t.loadOk);
         }
 
         function resizeCanvas() {
@@ -678,7 +633,6 @@
             saveCurrentPageState();
         }
 
-        /* --- DIBUJO DEL RELOJ ANALÓGICO CENTRADO ABSOLUTO CON NÚMEROS --- */
         function drawAnalogClock(canvasEl, date) {
             const c = canvasEl.getContext('2d');
             const w = canvasEl.width;
@@ -690,7 +644,6 @@
             c.setTransform(1, 0, 0, 1, 0, 0);
             c.clearRect(0, 0, w, h);
 
-            // 1. Esfera exterior
             c.beginPath();
             c.arc(cx, cy, radius, 0, 2 * Math.PI);
             c.fillStyle = '#ffffff';
@@ -699,7 +652,6 @@
             c.strokeStyle = '#2c3e50';
             c.stroke();
 
-            // 2. Marcas de minutos y horas
             for (let i = 0; i < 60; i++) {
                 const angle = (i * Math.PI / 30) - (Math.PI / 2);
                 const isHour = i % 5 === 0;
@@ -714,7 +666,6 @@
                 c.stroke();
             }
 
-            // 3. Números del 1 al 12
             c.font = 'bold 15px "Segoe UI", sans-serif';
             c.textAlign = 'center';
             c.textBaseline = 'middle';
@@ -727,24 +678,19 @@
                 c.fillText(num.toString(), x, y);
             }
 
-            // 4. Agujas
             const hr = date.getHours() % 12;
             const min = date.getMinutes();
             const sec = date.getSeconds();
 
-            // Hora (corta y negra)
             const hrAngle = ((hr + min / 60) * Math.PI / 6) - (Math.PI / 2);
             drawHandLine(c, cx, cy, hrAngle, radius * 0.45, 5, '#2c3e50');
 
-            // Minutos (larga y azul)
             const minAngle = ((min + sec / 60) * Math.PI / 30) - (Math.PI / 2);
             drawHandLine(c, cx, cy, minAngle, radius * 0.65, 3.5, '#3498db');
 
-            // Segundos (fina y roja)
             const secAngle = (sec * Math.PI / 30) - (Math.PI / 2);
             drawHandLine(c, cx, cy, secAngle, radius * 0.75, 1.5, '#e74c3c');
 
-            // Tapón centro
             c.beginPath();
             c.arc(cx, cy, 5, 0, 2 * Math.PI);
             c.fillStyle = '#2c3e50';
